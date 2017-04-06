@@ -33,7 +33,7 @@ pred.e_filter(5)
 pred_B = predictors.Predictors(corr_data)
 pred_B.e_filter(5)
 trades_raw = pred_B.movAVG_BuySell()
-trades_raw.to_csv('%basic_trades.csv', sep=',')
+trades_raw.to_csv('basic_trades.csv', sep=',')
 trades_period = st.fillin_low_periods(trades_raw,corr_data)
 # Note that we DON'T use the smoothed data for backtesting.
 results = st.backtest(trades_period,initial_capital)
@@ -83,7 +83,7 @@ for i in range(len(pred_R)):
         if bs is not None:
             trades = pd.concat([trades,bs])
 
-trades.to_csv('%ml_trades_gap.csv', sep=',')
+trades.to_csv('ml_trades_gap.csv', sep=',')
 # Fill in the low periods.
 trades_period2 = st.fillin_low_periods(trades,corr_data)
 # Note that we DON'T use the smoothed data for backtesting.

@@ -257,6 +257,7 @@ change = pd.DataFrame({
 # erroneous value.
 for i in range(1,len(ret)):
     change["Pred"] = change["Pred"] + ((ret[i-1].PRED > ret[i].PRED)*fluc[i])
+change.to_csv('ml_predictions_all.csv', sep=',')
 
 gs = gridspec.GridSpec(2, 1, height_ratios=[2, 1])
 ax1 = plt.subplot(gs[0])
