@@ -107,16 +107,24 @@ def fillin_low_periods(trades,dat, daily=False):
     creates a format which can be used in for backtesting 
     """
     if daily is False:
-        long_profits = pd.DataFrame({
-            "Price": trades.loc[(trades['Signal'] == 'Buy') & trades['Regime'] == 1, 'Price'],
-            "Profit": pd.Series(trades["Price"] - trades["Price"].shift(1)).loc[
-                trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index].tolist(),
-            "End Date": trades['Price'].loc[
-                trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index
-            ].index
-        })
+        long_profits = pd.DataFrame({"Price": [], "Profit": [], "End Date": []})
+        for i in range(0,len(trades),2):
+            long_profits = pd.concat([long_profits,
+                                      pd.DataFrame({
+                                          "Price": dat.ix[trades.index[i],"Open"],
+                                          "Profit": dat.ix[trades.index[i+1]].Close - dat.ix[trades.index[i], "Open"],
+                                          "End Date": trades.index[i+1],
+                                          "Low": min(dat.ix[trades.index[i]:trades.index[i+1],"Low"])}, index=[trades.index[i]])])
+        # long_profits = pd.DataFrame({
+        #     "Price": trades.loc[(trades['Signal'] == 'Buy') & trades['Regime'] == 1, 'Price'],
+        #     "Profit": pd.Series(trades["Price"] - trades["Price"].shift(1)).loc[
+        #         trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index].tolist(),
+        #     "End Date": trades['Price'].loc[
+        #         trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index
+        #     ].index
+        # })
         long_profits.sort_index(inplace=True)
-        long_profits['Low'] = long_profits.apply(lambda row: min(dat.ix[row.name:row['End Date'], 'Low']), axis=1)
+        #long_profits['Low'] = long_profits.apply(lambda row: min(dat.ix[row.name:row['End Date'], 'Low']), axis=1)
     else:
         long_profits = pd.DataFrame({"Price": [], "Profit": [], "End Date": []})
         for i in range(0,len(trades),2):
@@ -125,11 +133,11 @@ def fillin_low_periods(trades,dat, daily=False):
                                           "Price": dat.ix[trades.index[i],"Open"],
                                           "Profit": dat.ix[trades.index[i]].Close - dat.ix[trades.index[i], "Open"],
                                           "End Date": trades.index[i],
-                                          "Low": dat.ix[trades.index[i],"Low"]})])
+                                          "Low": dat.ix[trades.index[i],"Low"]}, index=[trades.index[i]])])
         long_profits.sort_index(inplace=True)
     return  long_profits
 
-def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commission=0.025):
+def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commission=0.0025):
     """
     :param signals: pandas DataFrame containing buy and sell signals with stock prices and symbols, like that returned by ma_crossover_orders
     :param cash: integer for starting cash value
@@ -151,11 +159,14 @@ def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commis
                                    "Commission": [],
                                    "Stop-Loss Triggered": []})
     for index, row in signals.iterrows():
-        batches = np.floor(cash * port_value) // np.ceil(
-            batch * row["Price"])  # Maximum number of batches of stocks invested in
+        batches = np.floor(cash * port_value) // np.ceil(batch * row["Price"])  # Maximum number of batches of stocks invested in
+        if batches <1:
+            batches = 1
+
         trade_val = batches * batch * row["Price"]  # How much money is put on the line with each trade
         comm_buy = trade_val*commission
-        trade_val = trade_val - comm_buy
+        cash =  cash - comm_buy
+        trade_val = trade_val
         if row["Low"] < (1 - stoploss) * row["Price"]:  # Account for the stop-loss
             share_profit = np.round((1 - stoploss) * row["Price"], 2)
             stop_trig = True
@@ -167,14 +178,14 @@ def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commis
         profit = profit - comm_sell
         # Add a row to the backtest data frame containing the results of the trade
         results = results.append(pd.DataFrame({
-            "Start Port. Value": cash,
+            "Start Port. Value": cash + comm_buy+comm_sell,
             "End Port. Value": cash + profit,
             "End Date": row["End Date"],
             "Shares": batch * batches,
             "Share Price": row["Price"],
             "Trade Value": trade_val,
             "Profit per Share": share_profit,
-            "Total Profit": profit,
+            "Total Profit": profit + comm_sell,
             'Commission': comm_buy+comm_sell,
             "Stop-Loss Triggered": stop_trig
         }, index=[index]))

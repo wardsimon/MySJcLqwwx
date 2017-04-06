@@ -36,27 +36,31 @@ trades_raw = pred_B.movAVG_BuySell()
 trades_raw.to_csv('basic_trades.csv', sep=',')
 trades_period = st.fillin_low_periods(trades_raw,corr_data)
 # Note that we DON'T use the smoothed data for backtesting.
-results = st.backtest(trades_period,initial_capital)
+results = st.backtest(trades_period,initial_capital,commission=0.0025)
 
 # Just some fancy plotting
 def highlight_trades(idx,ax,color='green'):
     i=0
     while i<len(idx):
-         ax.axvspan(idx[i], idx[i+1], facecolor=color, edgecolor='none', alpha=.2)
-         i+=2
+        if idx[i] == idx[i+1]:
+            ax.axvspan(idx[i]-pd.Timedelta(1, unit='d'), idx[i + 1]+pd.Timedelta(1, unit='d'), facecolor=color, edgecolor='none', alpha=.2)
+        else:
+            ax.axvspan(idx[i], idx[i+1], facecolor=color, edgecolor='none', alpha=.2)
+        i+=2
 
 # Plot our benchmark
 gs = gridspec.GridSpec(2, 1, height_ratios=[2, 1])
 ax1 = plt.subplot(gs[0])
-corr_data.Close.plot()
-ax1.set_ylabel("SPX [$]")
+corr_data.Close.plot(label="SPY", legend=True)
+ax1.set_ylabel("Share Price [$]")
 ax2 = plt.subplot(gs[1],sharex=ax1)
-results["End Port. Value"].div(initial_capital).plot()
+results["End Port. Value"].div(initial_capital).plot(label="Return", legend=True)
 ax2.set_xlabel("Time")
 ax2.set_ylabel("Cash Normalized")
 highlight_trades(trades_raw.index,ax1)
 highlight_trades(trades_raw.index,ax2)
-
+plt.title("Basic momentum flow")
+plt.savefig("Benchmark_return.png")
 
 corr_new = corr_data.copy()
 # Can we make extra profit by predicting the future?
@@ -84,22 +88,45 @@ for i in range(len(pred_R)):
             trades = pd.concat([trades,bs])
 
 trades.to_csv('ml_trades_gap.csv', sep=',')
+# trades = pd.read_csv('ml_trades_gap.csv',index_col=0, parse_dates=True)
+
 # Fill in the low periods.
-trades_period2 = st.fillin_low_periods(trades,corr_data)
+trades_period2 = st.fillin_low_periods(trades,corr_data,daily=True)
 # Note that we DON'T use the smoothed data for backtesting.
-results2 = st.backtest(trades_period2,initial_capital)
+results2 = st.backtest(trades_period2,initial_capital,commission=0.0025)
 
 # Plot our stratergy.
 gs = gridspec.GridSpec(2, 1, height_ratios=[2, 1])
 ax1 = plt.subplot(gs[0])
-corr_data.Close.plot()
-ax1.set_ylabel("SPX [$]")
+corr_data.Close.plot(label="SPY", legend=True)
+ax1.set_ylabel("Share Price [$]")
 ax2 = plt.subplot(gs[1],sharex=ax1)
-results2["End Port. Value"].div(initial_capital).plot()
+results2["End Port. Value"].div(initial_capital).plot(label="Return", legend=True)
 ax2.set_xlabel("Time")
 ax2.set_ylabel("Cash Normalized")
 highlight_trades(trades.index,ax1,'r')
 highlight_trades(trades.index,ax2,'r')
+plt.title("Random Forest Trades")
+plt.savefig("RF_return.png")
 
-plt.plot(results2)
+acc = (results2["Total Profit"]<0).sum()/(results2["Total Profit"]>0).sum()
 
+trades_tot = pd.concat([trades_raw,trades])
+trades_period3 = st.fillin_low_periods(trades_tot,corr_data)
+Results_total = st.backtest(trades_period3,initial_capital,commission=0.0025)
+
+# And now both together
+gs = gridspec.GridSpec(2, 1, height_ratios=[2, 1])
+ax1 = plt.subplot(gs[0])
+corr_data.Close.plot(label="SPY", legend=True)
+ax1.set_ylabel("Share Price [$]")
+ax2 = plt.subplot(gs[1],sharex=ax1)
+Results_total["End Port. Value"].div(initial_capital).plot(label="Return", legend=True)
+ax2.set_xlabel("Time")
+ax2.set_ylabel("Cash Normalized")
+highlight_trades(trades_raw.index,ax1)
+highlight_trades(trades_raw.index,ax2)
+highlight_trades(trades.index,ax1,'r')
+highlight_trades(trades.index,ax2,'r')
+plt.title("Random Forest + Momentum Trades")
+plt.savefig("RF+M_return.png")
