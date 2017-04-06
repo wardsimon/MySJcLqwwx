@@ -3,9 +3,9 @@ import Methods as models
 import Predictors as predictors
 import stock_tools as st
 import matplotlib.pyplot as plt
-import numpy as np
+import pandas as pd
 from matplotlib import gridspec
-
+import ML_predict as strat
 
 # Create a template with the available variables
 interest = 'SPY'
@@ -33,15 +33,16 @@ pred.e_filter(5)
 pred_B = predictors.Predictors(corr_data)
 pred_B.e_filter(5)
 trades_raw = pred_B.movAVG_BuySell()
+trades_raw.to_csv('%basic_trades.csv', sep=',')
 trades_period = st.fillin_low_periods(trades_raw,corr_data)
 # Note that we DON'T use the smoothed data for backtesting.
 results = st.backtest(trades_period,initial_capital)
 
 # Just some fancy plotting
-def highlight_trades(idx,ax):
+def highlight_trades(idx,ax,color='green'):
     i=0
     while i<len(idx):
-         ax.axvspan(idx[i], idx[i+1], facecolor='green', edgecolor='none', alpha=.2)
+         ax.axvspan(idx[i], idx[i+1], facecolor=color, edgecolor='none', alpha=.2)
          i+=2
 
 # Plot our benchmark
@@ -63,95 +64,42 @@ corr_new["Avail"] = 0
 corr_new.ix[corr_data.index[0]:trades_raw.index[0],"Avail"] = 1
 for i in range(1,len(trades_raw)-1,2):
     corr_new.ix[trades_raw.index[i]:trades_raw.index[i + 1],"Avail"] = 1
+
+
 # We now have a dataset where trades can be made.
-pred_R = predictors.Predictors(corr_new)
+pred_R = corr_new[corr_new.Avail == 1]
+# This is the difference in daily percentage which we will look at
+logic = (1 - pred.data.Close.shift(1).div(pred.data.Close))
 
+# Start the simulation loop
+days_previous = 252 # This is the number of previous days to study
+trades = pd.DataFrame({"Price": [],"Regime": [], "Signal": []}) # Empty dataframe to put trades.
+# Cycle through each day and simulate
+for i in range(len(pred_R)):
+    # Check if we have enough previous data
+    if pred_R.index[i] > pred.props.index[days_previous+1]:
+        # Do the simulation. See ML_BuySell.py for details.
+        bs = strat.ML_BuySell(pred.props, pred_R.index[i], {'meanfractal', 'RStok0', 'mom', 'MACD_l'}, logic)
+        if bs is not None:
+            trades = pd.concat([trades,bs])
 
-sess = np.arange(-.01, .02,0.001)
-j = 0
-shown = []
-(pred.data.Close.shift(1).div(pred.data.Close)).plot(color='b')
-for ress in res:
-    shown.append(ress[0])
-    shown[j]["PERC"] = 1
-    for i in range(1,len(ress)):
-        def f(x):
-            if x > 0.1:
-                x = sess[i]
-            else:
-                x = 0
-            return x
-    shown[j]["PERC"] = shown[j]["PERC"] + ((ress[i-1].PRED > ress[i].PRED)*sess[i])
-    shown[j]["PERC"].plot(color = "r", alpha = (1 - float(j)/len(ress)))
+trades.to_csv('%ml_trades_gap.csv', sep=',')
+# Fill in the low periods.
+trades_period2 = st.fillin_low_periods(trades,corr_data)
+# Note that we DON'T use the smoothed data for backtesting.
+results2 = st.backtest(trades_period2,initial_capital)
 
-# temp = pred.make_percentage_higher(20,0)
-# temp.plot()
-# y_ = pd.Series()
-# ndays = 252
-# clf = neighbors.KNeighborsClassifier(n_neighbors=6)
-# inp = pred.props.dropna()
-# for i in range(ndays, len(pred.props.index)):
-#     x = inp.ix[i - ndays:i, {'meanfractal', 'loc_vol'}]
-#     y = inp.ix[i - ndays:i, 'PHH'] > 0.5
-#     clf.fit(x, y)
-#     y_ = y_.append(pd.Series(clf.predict(x)[-1]), ignore_index=True)
-# model = clf
-# print("Predicted model accuracy: " + str(model.score(inp.ix[ndays:,{'meanfractal', 'loc_vol'}], inp.ix[ndays:,'PHH'] > 0.5)))
+# Plot our stratergy.
+gs = gridspec.GridSpec(2, 1, height_ratios=[2, 1])
+ax1 = plt.subplot(gs[0])
+corr_data.Close.plot()
+ax1.set_ylabel("SPX [$]")
+ax2 = plt.subplot(gs[1],sharex=ax1)
+results2["End Port. Value"].div(initial_capital).plot()
+ax2.set_xlabel("Time")
+ax2.set_ylabel("Cash Normalized")
+highlight_trades(trades.index,ax1,'r')
+highlight_trades(trades.index,ax2,'r')
 
-fig, ax1 = plt.subplots()
-pred.data.Close.div(pred.data.Close[0]).plot()
-ax2 = ax1.twinx()
-pred.calc_atr(20).plot(color='r')
+plt.plot(results2)
 
-pred.days = 12
-pred.min_shift = 0.03
-
-pred.make_bollinger(20,2)
-fig, ax1 = plt.subplots()
-pred.data.Close.div(pred.data.Close[0]).plot()
-ax2 = ax1.twinx()
-pred.data["20Bol_U"].plot(color='r')
-pred.data["20Bol_L"].plot(color='r')
-
-
-(Long, Short) = pred.calc_Chandelier()
-fig, ax1 = plt.subplots()
-pred.data.Close.div(pred.data.Close[0]).plot()
-ax2 = ax1.twinx()
-Long.plot(color='r')
-Short.plot(color='r')
-
-# print(pred.props.head())
-# print(pred.props["switch"].value_counts())
-
-m = models.ML(pred.props)
-m.randomForset_learn(5, 15)
-
-mm = models.DL(pred.props)
-mm.do_all(252)
-
-mm.create_dataset()
-mm.nn_init()
-mm.nn_learn()
-
-
-model3 = []
-model1 = []
-acc1 = []
-acc3 = []
-for i in range(1,6):
-    model3.append(models.ML(pred.props))
-    model3[i-1].randomForset_learn(5, i)
-    acc3.append(model3[i-1].accuracy)
-    model1.append(models.ML(pred.props))
-    try:
-        model1[i-1].knn_learn(5,i)
-        acc1.append(model1[i - 1].accuracy)
-    except ValueError:
-        acc1.append(0.)
-        print("Model can not be evaluated at %s" % i)
-
-plt.plot(range(1, 6), 'r--', acc1, range(1, 6), acc3, 'b--')
-plt.ylabel('Accuracy')
-plt.xlabel('Site Length')
-plt.show()

@@ -30,9 +30,17 @@ class ML:
             # We perform a 80/20 split on the data
             ind = int(np.round(ndays*0.8))
             X_TRAIN = pred.ix[(i - ndays):(i - ndays + ind),p]
-            Y_TRAIN = pred.switch.ix[pred.ix[(i - ndays + forward_look):(i - ndays + ind + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays):(i - ndays + ind+forward_look)].index
+                Y_TRAIN = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TRAIN = pred.switch.ix[X_TRAIN.index]
             X_TEST = pred.ix[(i - ndays + ind):i,p]
-            Y_TEST = pred.switch.ix[pred.ix[(i - ndays + ind + forward_look):(i + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays + ind):(i+forward_look),p].index
+                Y_TEST = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TEST = pred.switch.ix[X_TEST.index]
             clf.fit(X_TRAIN, Y_TRAIN)
             predicted = clf.predict(X_TEST)
             a = clf.score(X_TEST, Y_TEST)
@@ -60,9 +68,17 @@ class ML:
             # We perform a 80/20 split on the data
             ind = int(np.round(ndays*0.8))
             X_TRAIN = pred.ix[(i - ndays):(i - ndays + ind),p]
-            Y_TRAIN = pred.switch.ix[pred.ix[(i - ndays + forward_look):(i - ndays + ind + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays):(i - ndays + ind+forward_look)].index
+                Y_TRAIN = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TRAIN = pred.switch.ix[X_TRAIN.index]
             X_TEST = pred.ix[(i - ndays + ind):i,p]
-            Y_TEST = pred.switch.ix[pred.ix[(i - ndays + ind + forward_look):(i + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays + ind):(i+forward_look),p].index
+                Y_TEST = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TEST = pred.switch.ix[X_TEST.index]
             clf.fit(X_TRAIN, Y_TRAIN)
             predicted = clf.predict(X_TEST)
             a = clf.score(X_TEST, Y_TEST)
@@ -91,9 +107,17 @@ class ML:
             # We perform a 80/20 split on the data
             ind = int(np.round(ndays*0.8))
             X_TRAIN = pred.ix[(i - ndays):(i - ndays + ind),p]
-            Y_TRAIN = pred.switch.ix[pred.ix[(i - ndays + forward_look):(i - ndays + ind + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays):(i - ndays + ind+forward_look)].index
+                Y_TRAIN = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TRAIN = pred.switch.ix[X_TRAIN.index]
             X_TEST = pred.ix[(i - ndays + ind):i,p]
-            Y_TEST = pred.switch.ix[pred.ix[(i - ndays + ind + forward_look):(i + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays + ind):(i+forward_look),p].index
+                Y_TEST = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TEST = pred.switch.ix[X_TEST.index]
             clf.fit(X_TRAIN, Y_TRAIN)
             predicted = clf.predict(X_TEST)
             a = clf.score(X_TEST, Y_TEST)
@@ -121,9 +145,17 @@ class ML:
             # We perform a 80/20 split on the data
             ind = int(np.round(ndays*0.8))
             X_TRAIN = pred.ix[(i - ndays):(i - ndays + ind),p]
-            Y_TRAIN = pred.switch.ix[pred.ix[(i - ndays + forward_look):(i - ndays + ind + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays):(i - ndays + ind+forward_look)].index
+                Y_TRAIN = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TRAIN = pred.switch.ix[X_TRAIN.index]
             X_TEST = pred.ix[(i - ndays + ind):i,p]
-            Y_TEST = pred.switch.ix[pred.ix[(i - ndays + ind + forward_look):(i + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays + ind):(i+forward_look),p].index
+                Y_TEST = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TEST = pred.switch.ix[X_TEST.index]
             clf.fit(X_TRAIN, Y_TRAIN)
             predicted = clf.predict(X_TEST)
             # proba = clf.predict_proba(X_TEST)
@@ -154,9 +186,17 @@ class ML:
             # We perform a 80/20 split on the data
             ind = int(np.round(ndays*0.8))
             X_TRAIN = pred.ix[(i - ndays):(i - ndays + ind),p]
-            Y_TRAIN = pred.switch.ix[pred.ix[(i - ndays + forward_look):(i - ndays + ind + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays):(i - ndays + ind+forward_look)].index
+                Y_TRAIN = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TRAIN = pred.switch.ix[X_TRAIN.index]
             X_TEST = pred.ix[(i - ndays + ind):i,p]
-            Y_TEST = pred.switch.ix[pred.ix[(i - ndays + ind + forward_look):(i + forward_look)].index]
+            if forward_look > 0:
+                idx = pred.ix[(i - ndays + ind):(i+forward_look),p].index
+                Y_TEST = pred.switch.ix[idx].shift(-1*forward_look)[:(-1*forward_look)]
+            else:
+                Y_TEST = pred.switch.ix[X_TEST.index]
             clf.fit(X_TRAIN, Y_TRAIN)
             predicted = clf.predict(X_TEST)
             a = clf.score(X_TEST, Y_TEST)
@@ -255,7 +295,6 @@ class ML:
                                      cv_params,
                                      scoring='accuracy', cv=5, n_jobs=-1)
         optimized_GBM.fit(X_TRAIN, Y_TRAIN)
-        me = [x[1] for x in optimized_GBM.grid_scores_]
         best = {**best, **sorted(optimized_GBM.grid_scores_, key = lambda x: (x[1], -np.std(x[2]), x.parameters['subsample']))[-1].parameters}
         our_params = {'eta': best["learning_rate"], 'seed': 0, 'subsample': best["subsample"], 'colsample_bytree': 0.8,
                       'objective': 'binary:logistic', 'max_depth': best["max_depth"],

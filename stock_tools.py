@@ -96,7 +96,7 @@ def calc_trades(dat,fast=20,slow=50):
     trades.sort_index(inplace=True)
     return trades
 
-def fillin_low_periods(trades,dat):
+def fillin_low_periods(trades,dat, daily=False):
     """
     :param trades: pandas DataFrame with Buy and sell signals + the regime we're in 
     :param dat: pandas DataFrame containing the price information
@@ -106,16 +106,27 @@ def fillin_low_periods(trades,dat):
     This function takes a pandas DataFrame with trades for buying and selling and fills in the low price and 
     creates a format which can be used in for backtesting 
     """
-    long_profits = pd.DataFrame({
-        "Price": trades.loc[(trades['Signal'] == 'Buy') & trades['Regime'] == 1, 'Price'],
-        "Profit": pd.Series(trades["Price"] - trades["Price"].shift(1)).loc[
-            trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index].tolist(),
-        "End Date": trades['Price'].loc[
-            trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index
-        ].index
-    })
-    long_profits.sort_index(inplace=True)
-    long_profits['Low'] = long_profits.apply(lambda row: min(dat.ix[row.name:row['End Date'],'Low']), axis=1)
+    if daily is False:
+        long_profits = pd.DataFrame({
+            "Price": trades.loc[(trades['Signal'] == 'Buy') & trades['Regime'] == 1, 'Price'],
+            "Profit": pd.Series(trades["Price"] - trades["Price"].shift(1)).loc[
+                trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index].tolist(),
+            "End Date": trades['Price'].loc[
+                trades.loc[(trades['Signal'].shift(1) == 'Buy') & (trades['Regime'].shift(1) == 1)].index
+            ].index
+        })
+        long_profits.sort_index(inplace=True)
+        long_profits['Low'] = long_profits.apply(lambda row: min(dat.ix[row.name:row['End Date'], 'Low']), axis=1)
+    else:
+        long_profits = pd.DataFrame({"Price": [], "Profit": [], "End Date": []})
+        for i in range(0,len(trades),2):
+            long_profits = pd.concat([long_profits,
+                                      pd.DataFrame({
+                                          "Price": dat.ix[trades.index[i],"Open"],
+                                          "Profit": dat.ix[trades.index[i]].Close - dat.ix[trades.index[i], "Open"],
+                                          "End Date": trades.index[i],
+                                          "Low": dat.ix[trades.index[i],"Low"]})])
+        long_profits.sort_index(inplace=True)
     return  long_profits
 
 def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commission=0.025):
