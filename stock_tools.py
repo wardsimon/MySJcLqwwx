@@ -166,7 +166,6 @@ def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commis
         trade_val = batches * batch * row["Price"]  # How much money is put on the line with each trade
         comm_buy = trade_val*commission
         cash =  cash - comm_buy
-        trade_val = trade_val
         if row["Low"] < (1 - stoploss) * row["Price"]:  # Account for the stop-loss
             share_profit = np.round((1 - stoploss) * row["Price"], 2)
             stop_trig = True
@@ -175,7 +174,7 @@ def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commis
             stop_trig = False
         profit = share_profit * batches * batch  # Compute profits
         comm_sell = np.abs(profit*commission)
-        profit = profit - comm_sell
+        cash = cash - comm_sell
         # Add a row to the backtest data frame containing the results of the trade
         results = results.append(pd.DataFrame({
             "Start Port. Value": cash + comm_buy+comm_sell,
@@ -185,7 +184,7 @@ def backtest(signals, cash, port_value = .1, batch = 100, stoploss = 0.2, commis
             "Share Price": row["Price"],
             "Trade Value": trade_val,
             "Profit per Share": share_profit,
-            "Total Profit": profit + comm_sell,
+            "Total Profit": profit,
             'Commission': comm_buy+comm_sell,
             "Stop-Loss Triggered": stop_trig
         }, index=[index]))
