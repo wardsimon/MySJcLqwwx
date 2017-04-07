@@ -7,6 +7,8 @@ from sklearn.ensemble import RandomForestClassifier
 def ML_BuySell(all_data, predictDate, predictors, previous_results, limit=0.0051,
                limit_comp=np.arange(-.015, 0.02, 0.001), days_previous=252, train_split=0.8, n=3,acc_limit=0.75):
     """
+    This function takes all the information about previous traddes and used a random forest model to predict 
+    what is going to happen on the query date. 
     
     :param all_data: pandas DataFrame, All technical details. generated from Predictors class
     :param predictDate: pandas DateTime, The timestamp you want to look at
@@ -20,6 +22,8 @@ def ML_BuySell(all_data, predictDate, predictors, previous_results, limit=0.0051
     :param acc_limit: float, specifies the minimum accuracy for a trade to take place.
     :return: pandas DataFrame containing Buy and Sell commands.
     """
+
+    # Split into testing and training data.
     ALLX_DATA = all_data.ix[all_data.index < predictDate, predictors]
     if len(ALLX_DATA) < days_previous:
         return
@@ -31,9 +35,11 @@ def ML_BuySell(all_data, predictDate, predictors, previous_results, limit=0.0051
     X_TEST_B = ALLX_DATA[(-1 * days_previous):]
     Y_TEST_B = ALLY_DATA[(-1 * days_previous):]
 
+    # Get parameters for the day in question
     PREDICT_X = all_data.ix[all_data.index == predictDate, predictors]
     if PREDICT_X.empty:
         return
+
     pred_v = []
     acc = []
     for x in np.nditer(limit_comp):
@@ -42,18 +48,23 @@ def ML_BuySell(all_data, predictDate, predictors, previous_results, limit=0.0051
         Y_TRAIN = Y_TEST_B.ix[indices]
         X_TEST = X_TEST_B.drop(X_TEST_B.index[indices])
         Y_TEST = Y_TEST_B.drop(Y_TEST_B.index[indices])
+        # Fit the training data
         fluc_m.append(RandomForestClassifier(n_estimators=n))
         fluc_m[-1].fit(X_TRAIN, 1*(Y_TRAIN > x))
+        # See how well we did
         a = fluc_m[-1].score(X_TEST, 1*(Y_TEST > x))
         acc.append(a)
+        # Predict the future
         pred_v.append(fluc_m[-1].predict(PREDICT_X)[0])
 
+    # Make an estimate of the daily change
     change = 0
     for i in range(1, len(limit_comp)):
         l = (pred_v[i - 1] > pred_v[i])
         if l:
             change = change + (l* limit_comp[i])
 
+    # If it is more than what we want, precede.
     if change > limit:
         return pd.concat([
                 pd.DataFrame({"Price": all_data.ix[all_data.index == predictDate, "price"],

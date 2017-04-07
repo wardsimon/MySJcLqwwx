@@ -12,11 +12,9 @@ class Predictors:
     """
     def __init__(self, data):
         """
-        :param data: pandas DataFrame with stock information from Yahoo finance
-        
-        :return: nothing 
-
         Construct a new Predictors object
+        :param data: pandas DataFrame with stock information from Yahoo finance
+
         """
         self.data = data
         self._days = 5
@@ -93,6 +91,11 @@ class Predictors:
         return long_predictors
 
     def _rep_predictors(self, itter):
+        """
+        Makes the fractal component by itterating backwards.
+        :param itter: Number of days to look back
+        :return: pandas dataframe containing the fractal component
+        """
         dat = self.data
         df = pd.DataFrame()
         for count in range(1, itter + 1):
@@ -103,19 +106,24 @@ class Predictors:
             df = pd.concat([df, dat['Fractal']], axis=1)
         return df
 
-    def _rep_predictorsE(self, itter):
-        dat = self.data
-        df = pd.DataFrame()
 
-        for count in range(1, itter + 1):
-            dat['Direction'] = np.where(dat['Close'].diff(count) > 0, 1, 0)
-            dat['Abs'] = dat['Close'].diff(count).abs()
-            dat['Volatility'] = dat.Close.diff().abs().rolling(count).sum()
-            dat['Fractal'] = dat['Abs'] / dat['Volatility'] * dat['Direction']
-            df = pd.concat([df, dat['Fractal']], axis=1)
-        return df
+    # def _rep_predictorsE(self, itter):
+    #     dat = self.data
+    #     df = pd.DataFrame()
+    #     for count in range(1, itter + 1):
+    #         dat['Direction'] = np.where(dat['Close'].diff(count) > 0, 1, 0)
+    #         dat['Abs'] = dat['Close'].diff(count).abs()
+    #         dat['Volatility'] = dat.Close.diff().abs().rolling(count).sum()
+    #         dat['Fractal'] = dat['Abs'] / dat['Volatility'] * dat['Direction']
+    #         df = pd.concat([df, dat['Fractal']], axis=1)
+    #     return df
 
     def _logic(self, x):
+        """
+        Is it greater than zero, yes 1, no -1. Used for making signals
+        :param x: What is to be looked at
+        :return: -1 or 1
+        """
         if x < 0:
             x = -1
         elif x > 0:
@@ -123,6 +131,12 @@ class Predictors:
         return x
 
     def make_splits(self, days=20, inplace=True):
+        """
+        Make a simple rolling mean over a user supplied period
+        :param days: number of days to perform the mean
+        :param inplace: Should this be appended to the internal data storage or returned
+        :return: pandas dataframe containing the rolling mean. If inplace=True
+        """
         dat = self.data
         if inplace:
             dat['%id' % days] = np.round(dat["Close"].rolling(window=days, center=False).mean(), 2)
@@ -130,6 +144,13 @@ class Predictors:
             return np.round(dat["Close"].rolling(window=days, center=False).mean(), 2)
 
     def make_esplits(self, days=20, inplace=True,C = None):
+        """
+        Make an exponential rolling mean over a user supplied period
+        :param days: number of days to perform the mean
+        :param inplace: Should this be appended to the internal data storage or returned
+        :param C: Account for a different datastore
+        :return: pandas dataframe containing the rolling mean. If inplace=True
+        """
         if C is None:
             C = self.data
         if inplace:
@@ -138,11 +159,24 @@ class Predictors:
             return C.Close.ewm(span=days).mean()
 
     def e_filter(self,days):
+        """
+        Make an exponential rolling mean over a user supplied period
+        :param days: number of days to perform the mean
+        :return: pandas dataframe containing the rolling mean.
+        """
         p = self.data.columns.values
         for val in p:
             self.data[val] = self.data[val].ewm(span=days).mean()
 
     def make_bollinger(self, days=20, fac=2, inplace=True):
+        """
+        Create Bollinger bands. A measure of the mean and standard deviation of a sample set.
+        
+        :param days: number of days to perform the mean
+        :param fac: How many standard deviations
+        :param inplace: Should this be appended to the internal data storage or returned
+        :return: pandas dataframe containing the two bollinger bands. If inplace=True
+        """
         dat = self.data
         temp = dat["Close"].rolling(window=days, center=False).std()
         if inplace:
@@ -152,17 +186,26 @@ class Predictors:
             return (dat["Close"].rolling(window=days, center=False).mean() + fac * temp,
                     dat["Close"].rolling(window=days, center=False).mean() - fac * temp)
 
-    def make_sharpR(self):
-        dat = self.data
-
     def make_stokO(self, period = 14, C = None):
-        L14 = self.data.Close.rolling(period).min()
-        H14 = self.data.Close.rolling(period).max()
+        """
+        Make a stokemetric oscillator. 
+        :param period:  number of days to perform the mean 
+        :param C: Account for a different datastore
+        :return: pandas dataframe containing the oscillator
+        """
+        L14 = self.data.Close.rolling(period).min() # Low point in period
+        H14 = self.data.Close.rolling(period).max() # High point in period
         if C is None:
             C = self.data
-        return 100*(C.Close - L14) / (H14 - L14)
+        return 100*(C.Close - L14) / (H14 - L14) # Simple measure of how far away we are
 
     def make_RstokO(self, period = 14, C = None):
+        """
+        Make a stokemetric oscillator. Negative of make_stokO
+        :param period:  number of days to perform the mean 
+        :param C: Account for a different datastore
+        :return: pandas dataframe containing the oscillator
+        """
         L14 = self.data.Close.rolling(period).min()
         H14 = self.data.Close.rolling(period).max()
         if C is None:
@@ -170,6 +213,17 @@ class Predictors:
         return -100*(H14 - C.Close)/(H14 - L14)
 
     def stokO_signal(self,upper = 80, lower = 20, days = 3, period = 14, K = None, C = None):
+        """
+        Generate a signal based on the stokemetric oscillator. Where a rolling mean has been applied.
+        :param upper: What is classed as a buy signal
+        :param lower: What is classed as a sell signal
+        :param days: number of days to perform the mean
+        :param period: number of days to perform the mean stokemetric oscillator
+        :param K: The signal from an oscillator
+        :param C: Account for a different datastore
+        :return: pandas dataframe containing buy/sell signals
+        """
+
         if K is None:
             if C is None:
                 K = self.make_stokO(period=period)
@@ -186,12 +240,21 @@ class Predictors:
             return x
         return D.map(fun_D)
 
+
     def movingA_signal(self,fast=20,slow=150,C = None):
+        """
+        Generate a signal based on two rolling means.
+        :param fast: number of days to perform the fast mean
+        :param slow: number of days to perform the slow mean
+        :param C: Account for a different datastore
+        :return: pandas dataframe containing buy/sell signals
+        """
         if C is None:
             C = self.data
-        R1 = C.Close.rolling(fast).mean()
-        R2 = C.Close.rolling(slow).mean()
-        A = R1 - R2
+
+        R1 = C.Close.rolling(fast).mean() # Slow rolling mean
+        R2 = C.Close.rolling(slow).mean() # Fast rolling mean
+        A = R1 - R2 # Where do they converge
         def fun_A(x):
             if x > 0:
                 x = 1
@@ -203,6 +266,13 @@ class Predictors:
         return A.map(fun_A)
 
     def MACD(self,fast = 12, slow = 26,C = None):
+        """
+        Gives the difference between two exponential rolling means.
+        :param fast: number of days to perform the fast mean
+        :param slow: number of days to perform the slow mean         
+        :param C: Account for a different datastore
+        :return: pandas dataframe containing the difference of two means
+        """
         if C is None:
             C = self.data
         R1 = self.make_esplits(fast,inplace=False,C=C)
@@ -210,6 +280,19 @@ class Predictors:
         return R1 - R2
 
     def MACD_signal_line(self,period = 9, hist = False, signal = False, MACD = None, fast = 12, slow = 26, C = None):
+        """
+        
+        Use the difference of two exponential means to generate buy and sell signals. Smoothed over a period of days.
+        
+        :param period: Smoothing number of days 
+        :param hist: Do you want to return a histogram
+        :param signal: Do you want a buy/sell signal
+        :param MACD: The difference between two exponential means, fast and slow
+        :param fast: Period to calculate the fast mean
+        :param slow: Period to calculate the slow mean
+        :param C: Account for a different datastore
+        :return: pandas dataframe containing buy/sell signals
+        """
         if MACD is None:
             MACD = self.MACD(fast,slow,C)
         SL = MACD.ewm(span=period).mean()
@@ -227,15 +310,32 @@ class Predictors:
 
     def movAVG_BuySell(self,periodM = 9, fastM = 12, slowM = 26, fastA = 20, slowA = 150, C = None,
                     upperS = 80, lowerS = 20, daysS = 3, periodS = 14, K = None):
+        """
+        
+        :param periodM: 
+        :param fastM: Period to calculate the fast mean (Exponential)
+        :param slowM: Period to calculate the slow mean (Exponential)
+        :param fastA: Period to calculate the fast mean (Average)
+        :param slowA: Period to calculate the slow mean (Average)
+        :param C: Account for a different datastore
+        :param upperS: Upper bound of the stokementric oscillator
+        :param lowerS: Lower bound of the stokementric oscillator
+        :param daysS: Period to calculate the mean (stokementric oscillator)
+        :param periodS: Number of days to smooth the stokementric oscillator
+        :param K: stokementric oscillator signal
+        :return: pandas dataframe containing buy/sell/regime signals
+        """
+
+
         if C is None:
             C = self.data
+
+        # Calculate all the signals
         C["Avg_Sig"] = self.movingA_signal(fast=fastA,slow=slowA,C = C)
         C["stok_Sig"] = self.stokO_signal(upper=upperS,lower=lowerS,days=daysS,period=periodS,C = C, K=K)
         C["MACD_Sig"] = self.MACD_signal_line(period=periodM,hist=True,signal=True,fast=fastM,slow=slowM)
 
-        Buy  = (C.Avg_Sig == 1) & (C.stok_Sig ==1) & (C.MACD_Sig==1)
-        Sell = (C.Avg_Sig == -1) & (C.stok_Sig ==-1) & (C.MACD_Sig==-1)
-
+        # Where do all the signals overlap
         C["regime"] = (C.Avg_Sig + C.stok_Sig + C.MACD_Sig)
         C["regime"].ix[C["regime"] == 2] = 0
         C["regime"].ix[C["regime"] == 1] = 0
@@ -245,13 +345,14 @@ class Predictors:
         C["regime"].ix[C["regime"] == 3] = 1
         C["regime"].ix[C["regime"] == -3] = -1
 
-
+        # We always have to end on a sell signal
         CC = C[C.regime != 0].copy()
         temp = CC['regime'].ix[-1]
         CC['regime'].ix[-1] = 0
         CC['signal'] = np.sign(CC['regime'] - CC['regime'].shift(1))
         CC['regime'].ix[-1] = temp
 
+        # Create a nice figure
         plt.figure(figsize=(10,8))
         gs = gridspec.GridSpec(4, 1, height_ratios=[3, 1, 1, 1])
         ax1 = plt.subplot(gs[0])
@@ -272,6 +373,7 @@ class Predictors:
         plt.fill_between(temp.index, temp.values, facecolor='r', alpha=0.2)
         CC['signal'].plot(label="Buy/Sell signal", legend=True)
 
+        # Make a dataframe containing the buy and sell signals for back testing.
         moves = pd.concat([
             pd.DataFrame({"Price": CC.loc[CC["signal"] == 1, "Close"],
                           "Regime": CC.loc[CC["signal"] == 1, 'regime'],
@@ -287,6 +389,10 @@ class Predictors:
 
 
     def days_C_prev(self):
+        """
+        Calculate how many consecutive days there has been a share prince increase
+        :return: pandas dataframe containing previous number of days with increase 
+        """
         sw = 1*(self.data.Close.shift(1).div(self.data.Close)> 1)
         for i in range(0,len(sw)):
             if bool(sw.iloc[i]):
@@ -294,19 +400,34 @@ class Predictors:
         return sw
 
     def calc_atr(self, days=20):
-
+        """
+        Calulate a rolling average of the true range.
+        :param days: number of days to berform the smoothing
+        :return: pandas dataframe containing the smoothed true range
+        """
         TR = self.calc_tr()  # These the true ranges for today.
         ATR = TR.rolling(days).mean()  # These are the average TR
         return ATR
 
     def calc_tr(self):
-        # Calculate true range
+        """
+        Calculate the true range of yesterday. 
+        This is HIGH-CLOSE, LOW-CLOSE, HIGH-LOW.
+        It is useful for finding what range we're closer to.
+        :return: pandas dataframe containing the three true range components.
+        """
         df = pd.DataFrame({'A1': np.abs(self.data.High - self.data.Close.shift(1)),
                            'A2': np.abs(self.data.Low - self.data.Close.shift(1)),
                            'A3': self.data.High - self.data.Low}).max(axis=1, skipna=True)
         return df
 
-    def calc_Chandelier(self, fac=3, inplace=True):
+    def calc_Chandelier(self, fac=3):
+        """
+        Use the true range and a rolling mean of the high/low price to set 
+        boundaries on where long and short positions should be.
+        :param fac: howmany times to multiply the true range. 
+        :return: turple containing the low and high as a pandas dataframe.
+        """
         dat = self.data
         ATR = self.calc_atr(22)
         MAXP = dat["High"].rolling(window=22, center=False).max()
@@ -317,6 +438,12 @@ class Predictors:
         return (Long, Short)
 
     def make_percentage_higher(self, days=10, min_shift=0.01):
+        """
+        
+        :param days: 
+        :param min_shift: 
+        :return: 
+        """
         dat = self.data
         # Reduce the noise
         temp = dat.Close
