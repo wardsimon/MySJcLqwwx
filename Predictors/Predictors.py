@@ -193,10 +193,10 @@ class Predictors:
         :param C: Account for a different datastore
         :return: pandas dataframe containing the oscillator
         """
-        L14 = self.data.Close.rolling(period).min() # Low point in period
-        H14 = self.data.Close.rolling(period).max() # High point in period
         if C is None:
             C = self.data
+        L14 = C.Close.rolling(period).min() # Low point in period
+        H14 = C.Close.rolling(period).max() # High point in period
         return 100*(C.Close - L14) / (H14 - L14) # Simple measure of how far away we are
 
     def make_RstokO(self, period = 14, C = None):
@@ -206,10 +206,11 @@ class Predictors:
         :param C: Account for a different datastore
         :return: pandas dataframe containing the oscillator
         """
-        L14 = self.data.Close.rolling(period).min()
-        H14 = self.data.Close.rolling(period).max()
         if C is None:
             C = self.data
+        L14 = C.Close.rolling(period).min()
+        H14 = C.Close.rolling(period).max()
+
         return -100*(H14 - C.Close)/(H14 - L14)
 
     def stokO_signal(self,upper = 80, lower = 20, days = 3, period = 14, K = None, C = None):
@@ -312,7 +313,9 @@ class Predictors:
                     upperS = 80, lowerS = 20, daysS = 3, periodS = 14, K = None):
         """
         
-        :param periodM: 
+        Make predictions based on a momentum model bound by a stokementric oscillator and maximum/minimum daily movement
+        
+        :param periodM: MACD Smoothing number of days
         :param fastM: Period to calculate the fast mean (Exponential)
         :param slowM: Period to calculate the slow mean (Exponential)
         :param fastA: Period to calculate the fast mean (Average)
