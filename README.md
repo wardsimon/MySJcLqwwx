@@ -3,7 +3,7 @@
 This is a machine learning model for the S&P 500.
 
 ## Files
-Please start at Strategy_Analysis.ipnb and refer to xgboost_test.ipnb and ML_test.ipnb
+Please start at Strategy_Analysis.ipynb and refer to xgboost_test.ipynb, ML_test.ipynb and DL.ipynb
 
 ## Review of trades and methodology
 * Strategy_Analysis.ipynb
@@ -23,6 +23,8 @@ Please start at Strategy_Analysis.ipnb and refer to xgboost_test.ipnb and ML_tes
 
 ## Predictor models
 * ML_predict.py
+* DL_predict.py
+* Predictors/Predictors.py - movAVG_BuySell
 
 ### All trades in the period
 * SPY.csv  - SPY in the time considered
